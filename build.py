@@ -266,7 +266,7 @@ def stops(a: str, b: str, start: float, end: float, opacity=None, count: int = 2
 
 
 def banner_svg(dark: dict[str, str], light: dict[str, str]) -> str:
-    """Dark fading into light, with each theme's colours converging in the middle."""
+    """Dark fading into light, with each theme's colours twisting together in the middle."""
     height = 240
     defs = [
         '<linearGradient id="ground">'
@@ -274,24 +274,25 @@ def banner_svg(dark: dict[str, str], light: dict[str, str]) -> str:
         + "</linearGradient>",
         f'<clipPath id="card"><rect width="{WIDTH}" height="{height}" rx="6" /></clipPath>',
     ]
-    lines = []
-    last = len(RIBBONS) - 1
-    def fade(t: float) -> float:
-        return 0.15 + 0.85 * math.sin(math.pi * t) ** 0.6
-
+    ribbons, mid, count = [], WIDTH / 2, len(RIBBONS)
     for i, token in enumerate(RIBBONS):
         defs.append(
             f'<linearGradient id="h{i}" gradientUnits="userSpaceOnUse" x1="0" x2="{WIDTH}">'
-            + stops(dark[token], light[token], 0.15, 0.85, fade)
+            + stops(dark[token], light[token], 0.3, 0.7)
             + "</linearGradient>"
         )
-        left = 20 + i * (height - 40) / last
-        right = height - 20 - i * (height - 40) / last
-        mid_x, mid_y = WIDTH / 2, height / 2
-        lines.append(
-            f'<path d="M0 {left:.1f} C{WIDTH * 0.32:.0f} {left:.1f} {WIDTH * 0.38:.0f} {mid_y} '
-            f'{mid_x:.0f} {mid_y} S{WIDTH * 0.68:.0f} {right:.1f} {WIDTH} {right:.1f}" '
-            f'fill="none" stroke="url(#h{i})" stroke-width="7" stroke-linecap="round" />'
+        # Ribbons spread out at the edges and squeeze together, twisting, in the middle.
+        top, bottom = [], []
+        for x in range(0, WIDTH + 1, 6):
+            near = math.exp(-(((x - mid) / 150) ** 2))
+            centre = height / 2 + (1 - 0.85 * near) * (i - (count - 1) / 2) * 22
+            centre += 18 * near * math.sin(x / 34 + i * 0.9)
+            half = (11 + 10 * near) / 2
+            top.append(f"{x} {centre - half:.1f}")
+            bottom.append(f"{x} {centre + half:.1f}")
+        ribbons.append(
+            f'<path d="M{" L".join(top)} L{" L".join(reversed(bottom))} Z" '
+            f'fill="url(#h{i})" opacity="0.88" />'
         )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" '
@@ -299,7 +300,7 @@ def banner_svg(dark: dict[str, str], light: dict[str, str]) -> str:
         'aria-label="GitHub Dark default fading into Light default">\n'
         f"<defs>{''.join(defs)}</defs>\n"
         f'<g clip-path="url(#card)"><rect width="{WIDTH}" height="{height}" fill="url(#ground)" />\n'
-        + "\n".join(lines)
+        + "\n".join(ribbons)
         + "\n</g>\n</svg>\n"
     )
 
