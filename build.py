@@ -166,7 +166,7 @@ def contrast(a: str, b: str) -> float:
 
 def chip(x: float, y: float, w: float, h: float, color: str) -> str:
     """A paint-chip card: colour on top, a white strip with the hex code below."""
-    block, r = h - 32, 4
+    block, r = h - 44, 6
     top = (
         f"M{x:.1f} {y + block:.1f}V{y + r}A{r} {r} 0 0 1 {x + r:.1f} {y}"
         f"H{x + w - r:.1f}A{r} {r} 0 0 1 {x + w:.1f} {y + r}V{y + block:.1f}Z"
@@ -175,28 +175,24 @@ def chip(x: float, y: float, w: float, h: float, color: str) -> str:
         f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="{h}" rx="{r}" class="paper" />'
         f'<path d="{top}" fill="{color}" />'
         f'<line x1="{x:.1f}" y1="{y + block:.1f}" x2="{x + w:.1f}" y2="{y + block:.1f}" class="edge" />'
-        f'<text x="{x + 10:.1f}" y="{y + block + 21:.1f}" class="hex">{color.upper()}</text>'
+        f'<text x="{x + 16:.1f}" y="{y + block + 28:.1f}" class="hex">{color.upper()}</text>'
     )
 
 
 def preview_svg(theme: str, tokens: dict[str, str]) -> str:
-    """Primer and base16 colours as paint-chip cards, four per row.
-
-    400px wide, so the light and dark sheets sit side by side in a README and
-    stack, unscaled, on narrow screens.
-    """
-    width, pad, gap, columns, card_h = 400, 16, 8, 4, 112
+    """Primer and base16 colours as large paint-chip cards, four per row."""
+    width, pad, gap, columns, card_h = 846, 28, 16, 4, 168
     card_w = (width - 2 * pad - (columns - 1) * gap) / columns
     fg, bg, border = tokens["fgColor-default"], tokens["bgColor-default"], tokens["borderColor-default"]
     rows = [
         ("Primer", [tokens[name] for name in PREVIEW_TOKENS]),
         ("base16", [color for _, color in base16_palette(theme, tokens).values()]),
     ]
-    parts = [f'<text class="title" x="{pad}" y="{pad + 20}">GitHub {escape(THEMES[theme])}</text>']
-    y = pad + 20
+    parts = [f'<text class="title" x="{pad}" y="{pad + 26}">GitHub {escape(THEMES[theme])}</text>']
+    y = pad + 26
     for heading, chips in rows:
-        parts.append(f'<text class="heading" x="{pad}" y="{y + 32}">{heading}</text>')
-        top = y + 44
+        parts.append(f'<text class="heading" x="{pad}" y="{y + 44}">{heading}</text>')
+        top = y + 60
         for index, color in enumerate(chips):
             row, column = divmod(index, columns)
             parts.append(chip(pad + column * (card_w + gap), top + row * (card_h + gap), card_w, card_h, color))
@@ -204,14 +200,14 @@ def preview_svg(theme: str, tokens: dict[str, str]) -> str:
         y = top + rows_used * card_h + (rows_used - 1) * gap
     height = y + pad
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="GitHub {escape(THEMES[theme])} palette">
-<defs><filter id="lift" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#1f2328" flood-opacity="0.18" /></filter></defs>
+<defs><filter id="lift" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1f2328" flood-opacity="0.18" /></filter></defs>
 <style>
   text {{ font-family: {SANS}; }}
-  .title {{ font-size: 18px; font-weight: 600; fill: {fg}; }}
-  .heading {{ font-size: 14px; font-weight: 600; fill: {tokens["fgColor-muted"]}; }}
+  .title {{ font-size: 26px; font-weight: 600; fill: {fg}; }}
+  .heading {{ font-size: 18px; font-weight: 600; fill: {tokens["fgColor-muted"]}; }}
   .paper {{ fill: #ffffff; stroke: #1f23281f; filter: url(#lift); }}
   .edge {{ stroke: #1f232814; }}
-  .hex {{ font-size: 12px; font-weight: 700; fill: #1f2328; letter-spacing: 0.02em; }}
+  .hex {{ font-size: 17px; font-weight: 700; fill: #1f2328; letter-spacing: 0.02em; }}
 </style>
 <rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="6" fill="{bg}" stroke="{border}" />
 {chr(10).join(parts)}

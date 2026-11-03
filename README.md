@@ -5,10 +5,9 @@
 GitHub's "Dark default" and "Light default" themes and Octicons, taken from
 GitHub's [Primer](https://primer.style) packages, for theming other apps.
 
-<p>
-  <img src="preview/dark.svg" alt="GitHub Dark default palette" width="400">
-  <img src="preview/light.svg" alt="GitHub Light default palette" width="400">
-</p>
+![GitHub Dark default palette](preview/dark.svg)
+
+![GitHub Light default palette](preview/light.svg)
 
 | File | Contents |
 | --- | --- |
