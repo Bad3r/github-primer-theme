@@ -1,0 +1,21 @@
+system: "base16"
+name: "GitHub Dark default"
+author: "GitHub Primer (https://primer.style)"
+variant: "dark"
+palette:
+  base00: "#0d1117" # bgColor-default
+  base01: "#151b23" # bgColor-muted
+  base02: "#3d444d" # borderColor-default
+  base03: "#656c76" # borderColor-emphasis
+  base04: "#9198a1" # fgColor-muted
+  base05: "#f0f6fc" # fgColor-default
+  base06: "#f0f6fc" # fgColor-default
+  base07: "#ffffff" # ansi-whiteBright
+  base08: "#ff7b72" # ansi-red
+  base09: "#ffa657" # prettylights-syntax-variable
+  base0A: "#d29922" # fgColor-attention
+  base0B: "#3fb950" # ansi-green
+  base0C: "#39c5cf" # ansi-cyan
+  base0D: "#58a6ff" # ansi-blue
+  base0E: "#be8fff" # ansi-magenta
+  base0F: "#b69a6d" # display-brown-fgColor
