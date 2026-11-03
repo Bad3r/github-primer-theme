@@ -17,7 +17,6 @@ import base64
 import hashlib
 import io
 import json
-import math
 import re
 import shutil
 import sys
@@ -156,10 +155,6 @@ PREVIEW_TOKENS = (
     "fgColor-attention", "fgColor-severe", "fgColor-danger", "fgColor-done",
     "fgColor-sponsors",
 )
-RIBBONS = (
-    "fgColor-danger", "fgColor-severe", "fgColor-attention", "fgColor-success",
-    "ansi-cyan", "fgColor-accent", "fgColor-done", "fgColor-sponsors",
-)
 SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif"
 MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
 WIDTH = 846
@@ -218,91 +213,6 @@ def preview_svg(theme: str, tokens: dict[str, str]) -> str:
 {chr(10).join(parts)}
 </svg>
 """
-
-
-def _linear(c: float) -> float:
-    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-
-
-def _srgb(c: float) -> float:
-    return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
-
-
-def _oklab(color: str) -> tuple[float, float, float]:
-    r, g, b = (_linear(int(color[i : i + 2], 16) / 255) for i in (1, 3, 5))
-    l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
-    m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
-    s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
-    return (
-        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
-        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
-        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
-    )
-
-
-def mix(a: str, b: str, t: float) -> str:
-    """Blend two colours in OKLab, which avoids a muddy middle."""
-    L, A, B = (x + (y - x) * t for x, y in zip(_oklab(a), _oklab(b)))
-    l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
-    m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
-    s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3
-    rgb = (
-        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
-    )
-    return "#" + "".join(f"{round(min(1, max(0, _srgb(max(0, c)))) * 255):02x}" for c in rgb)
-
-
-def stops(a: str, b: str, start: float, end: float, opacity=None, count: int = 24) -> str:
-    """Gradient stops from a to b with smoothstep easing."""
-    out = []
-    for i in range(count + 1):
-        t = i / count
-        alpha = f' stop-opacity="{opacity(t):.3f}"' if opacity else ""
-        color = mix(a, b, t * t * (3 - 2 * t))
-        out.append(f'<stop offset="{start + (end - start) * t:.4f}" stop-color="{color}"{alpha} />')
-    return "".join(out)
-
-
-def banner_svg(dark: dict[str, str], light: dict[str, str]) -> str:
-    """Dark fading into light, with each theme's colours twisting together in the middle."""
-    height = 240
-    defs = [
-        '<linearGradient id="ground">'
-        + stops(dark["bgColor-default"], light["bgColor-default"], 0.08, 0.92)
-        + "</linearGradient>",
-        f'<clipPath id="card"><rect width="{WIDTH}" height="{height}" rx="6" /></clipPath>',
-    ]
-    ribbons, mid, count = [], WIDTH / 2, len(RIBBONS)
-    for i, token in enumerate(RIBBONS):
-        defs.append(
-            f'<linearGradient id="h{i}" gradientUnits="userSpaceOnUse" x1="0" x2="{WIDTH}">'
-            + stops(dark[token], light[token], 0.3, 0.7)
-            + "</linearGradient>"
-        )
-        # Ribbons spread out at the edges and squeeze together, twisting, in the middle.
-        top, bottom = [], []
-        for x in range(0, WIDTH + 1, 6):
-            near = math.exp(-(((x - mid) / 150) ** 2))
-            centre = height / 2 + (1 - 0.85 * near) * (i - (count - 1) / 2) * 22
-            centre += 18 * near * math.sin(x / 34 + i * 0.9)
-            half = (11 + 10 * near) / 2
-            top.append(f"{x} {centre - half:.1f}")
-            bottom.append(f"{x} {centre + half:.1f}")
-        ribbons.append(
-            f'<path d="M{" L".join(top)} L{" L".join(reversed(bottom))} Z" '
-            f'fill="url(#h{i})" opacity="0.88" />'
-        )
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" '
-        f'viewBox="0 0 {WIDTH} {height}" role="img" '
-        'aria-label="GitHub Dark default fading into Light default">\n'
-        f"<defs>{''.join(defs)}</defs>\n"
-        f'<g clip-path="url(#card)"><rect width="{WIDTH}" height="{height}" fill="url(#ground)" />\n'
-        + "\n".join(ribbons)
-        + "\n</g>\n</svg>\n"
-    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -380,7 +290,6 @@ def main(argv: list[str] | None = None) -> int:
     previews.mkdir(exist_ok=True)
     for theme in THEMES:
         (previews / f"{theme}.svg").write_text(preview_svg(theme, resolved[theme]), encoding="utf-8")
-    (previews / "banner.svg").write_text(banner_svg(resolved["dark"], resolved["light"]), encoding="utf-8")
 
     icons = out / "icons"
     if icons.exists():

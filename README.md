@@ -1,4 +1,4 @@
-![](preview/banner.svg)
+![GitHub Universe 2022 artwork](https://github.blog/wp-content/uploads/2022/08/Universe-Blog-1-Header.jpg?fit=2400%2C1260)
 
 # github-primer-theme
 
@@ -15,7 +15,7 @@ GitHub's [Primer](https://primer.style) packages, for theming other apps.
 | `theme.css` | Both themes, following the system setting |
 | `base16/` | base16 schemes for 16-colour apps |
 | `icons/` | All Octicons as SVG (`<name>-<size>.svg`) |
-| `preview/` | The banner and palette images above |
+| `preview/` | The palette images above |
 | `build.py` | Regenerates the files above |
 
 Source: `@primer/primitives` 11.10.0 and `@primer/octicons` 19.42.0.
@@ -69,4 +69,6 @@ generated files.
 ## License
 
 MIT. The tokens and icons are GitHub's, also MIT: see
-`LICENSE-primer-primitives` and `LICENSE-primer-octicons`.
+`LICENSE-primer-primitives` and `LICENSE-primer-octicons`. The banner is
+GitHub's [Universe 2022](https://github.blog/) artwork, linked rather than
+included, and is not covered by this licence.
