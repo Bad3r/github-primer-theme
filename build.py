@@ -6,8 +6,8 @@
 """Rebuild this folder from GitHub's Primer packages on npm.
 
 Downloads @primer/primitives and @primer/octicons, verifies their sha512, and
-writes tokens.json, dark.css, light.css, theme.css, base16/, icons/ and the
-licences. Only CSS, SVG and text are read from the packages.
+writes tokens.json, dark.css, light.css, theme.css, base16/, preview/, icons/
+and the licences. Only CSS, SVG and text are read from the packages.
 """
 
 from __future__ import annotations
@@ -17,11 +17,13 @@ import base64
 import hashlib
 import io
 import json
+import math
 import re
 import shutil
 import sys
 import tarfile
 import urllib.request
+from html import escape
 from pathlib import Path
 
 REGISTRY = "https://registry.npmjs.org"
@@ -119,7 +121,8 @@ def luminance(color: str) -> float:
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
 
 
-def base16_scheme(theme: str, tokens: dict[str, str]) -> str:
+def base16_palette(theme: str, tokens: dict[str, str]) -> dict[str, tuple[str, str]]:
+    """slot -> (token, colour), checked to be opaque and correctly ordered."""
     column = 0 if theme == "dark" else 1
     palette = {slot: (pair[column], tokens[pair[column]]) for slot, pair in BASE16.items()}
     for slot, (token, color) in palette.items():
@@ -129,6 +132,11 @@ def base16_scheme(theme: str, tokens: dict[str, str]) -> str:
     ordered = sorted(ramp) if theme == "dark" else sorted(ramp, reverse=True)
     if ramp != ordered:
         raise SystemExit(f"base16 {theme}: base00-07 do not run from background to foreground")
+    return palette
+
+
+def base16_scheme(theme: str, tokens: dict[str, str]) -> str:
+    palette = base16_palette(theme, tokens)
     lines = [
         'system: "base16"',
         f'name: "GitHub {THEMES[theme]}"',
@@ -138,6 +146,162 @@ def base16_scheme(theme: str, tokens: dict[str, str]) -> str:
     ]
     lines += [f'  {slot}: "{color}" # {token}' for slot, (token, color) in palette.items()]
     return "\n".join(lines) + "\n"
+
+
+# Colours shown in the preview images.
+PREVIEW_TOKENS = (
+    "bgColor-inset", "bgColor-default", "bgColor-muted", "borderColor-default",
+    "borderColor-emphasis", "fgColor-muted", "fgColor-default", "fgColor-accent",
+    "bgColor-accent-emphasis", "fgColor-success", "bgColor-success-emphasis",
+    "fgColor-attention", "fgColor-severe", "fgColor-danger", "fgColor-done",
+    "fgColor-sponsors",
+)
+RIBBONS = (
+    "fgColor-danger", "fgColor-severe", "fgColor-attention", "fgColor-success",
+    "ansi-cyan", "fgColor-accent", "fgColor-done", "fgColor-sponsors",
+)
+SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif"
+MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
+WIDTH = 846
+
+
+def contrast(a: str, b: str) -> float:
+    hi, lo = sorted((luminance(a), luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def chip(x: float, y: float, w: float, h: float, color: str) -> str:
+    """A paint-chip card: colour on top, a white strip with the hex code below."""
+    block, r = h - 30, 4
+    top = (
+        f"M{x:.1f} {y + block:.1f}V{y + r}A{r} {r} 0 0 1 {x + r:.1f} {y}"
+        f"H{x + w - r:.1f}A{r} {r} 0 0 1 {x + w:.1f} {y + r}V{y + block:.1f}Z"
+    )
+    return (
+        f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="{h}" rx="{r}" class="paper" />'
+        f'<path d="{top}" fill="{color}" />'
+        f'<line x1="{x:.1f}" y1="{y + block:.1f}" x2="{x + w:.1f}" y2="{y + block:.1f}" class="edge" />'
+        f'<text x="{x + 8:.1f}" y="{y + block + 19:.1f}" class="hex">{color.upper()}</text>'
+    )
+
+
+def preview_svg(theme: str, tokens: dict[str, str]) -> str:
+    """Primer and base16 colours as paint-chip cards, two rows of eight each."""
+    pad, gap, columns, card_h = 20, 10, 8, 128
+    card_w = (WIDTH - 2 * pad - (columns - 1) * gap) / columns
+    fg, bg, border = tokens["fgColor-default"], tokens["bgColor-default"], tokens["borderColor-default"]
+    rows = [
+        ("Primer", [tokens[name] for name in PREVIEW_TOKENS]),
+        ("base16", [color for _, color in base16_palette(theme, tokens).values()]),
+    ]
+    parts = [f'<text class="title" x="{pad + 4}" y="{pad + 24}">GitHub {escape(THEMES[theme])}</text>']
+    y = pad + 24
+    for heading, chips in rows:
+        parts.append(f'<text class="heading" x="{pad + 4}" y="{y + 34}">{heading}</text>')
+        top = y + 46
+        for index, color in enumerate(chips):
+            row, column = divmod(index, columns)
+            parts.append(chip(pad + column * (card_w + gap), top + row * (card_h + gap), card_w, card_h, color))
+        y = top + 2 * card_h + gap
+    height = y + pad
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="GitHub {escape(THEMES[theme])} palette">
+<defs><filter id="lift" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#1f2328" flood-opacity="0.18" /></filter></defs>
+<style>
+  text {{ font-family: {SANS}; }}
+  .title {{ font-size: 20px; font-weight: 600; fill: {fg}; }}
+  .heading {{ font-size: 14px; font-weight: 600; fill: {tokens["fgColor-muted"]}; }}
+  .paper {{ fill: #ffffff; stroke: #1f23281f; filter: url(#lift); }}
+  .edge {{ stroke: #1f232814; }}
+  .hex {{ font-size: 11px; font-weight: 700; fill: #1f2328; letter-spacing: 0.02em; }}
+</style>
+<rect x="0.5" y="0.5" width="{WIDTH - 1}" height="{height - 1}" rx="6" fill="{bg}" stroke="{border}" />
+{chr(10).join(parts)}
+</svg>
+"""
+
+
+def _linear(c: float) -> float:
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _srgb(c: float) -> float:
+    return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+
+def _oklab(color: str) -> tuple[float, float, float]:
+    r, g, b = (_linear(int(color[i : i + 2], 16) / 255) for i in (1, 3, 5))
+    l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
+    m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
+    s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
+    return (
+        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    )
+
+
+def mix(a: str, b: str, t: float) -> str:
+    """Blend two colours in OKLab, which avoids a muddy middle."""
+    L, A, B = (x + (y - x) * t for x, y in zip(_oklab(a), _oklab(b)))
+    l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
+    m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
+    s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3
+    rgb = (
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+    )
+    return "#" + "".join(f"{round(min(1, max(0, _srgb(max(0, c)))) * 255):02x}" for c in rgb)
+
+
+def stops(a: str, b: str, start: float, end: float, opacity=None, count: int = 24) -> str:
+    """Gradient stops from a to b with smoothstep easing."""
+    out = []
+    for i in range(count + 1):
+        t = i / count
+        alpha = f' stop-opacity="{opacity(t):.3f}"' if opacity else ""
+        color = mix(a, b, t * t * (3 - 2 * t))
+        out.append(f'<stop offset="{start + (end - start) * t:.4f}" stop-color="{color}"{alpha} />')
+    return "".join(out)
+
+
+def banner_svg(dark: dict[str, str], light: dict[str, str]) -> str:
+    """Dark fading into light, with each theme's colours converging in the middle."""
+    height = 240
+    defs = [
+        '<linearGradient id="ground">'
+        + stops(dark["bgColor-default"], light["bgColor-default"], 0.08, 0.92)
+        + "</linearGradient>",
+        f'<clipPath id="card"><rect width="{WIDTH}" height="{height}" rx="6" /></clipPath>',
+    ]
+    lines = []
+    last = len(RIBBONS) - 1
+    def fade(t: float) -> float:
+        return 0.15 + 0.85 * math.sin(math.pi * t) ** 0.6
+
+    for i, token in enumerate(RIBBONS):
+        defs.append(
+            f'<linearGradient id="h{i}" gradientUnits="userSpaceOnUse" x1="0" x2="{WIDTH}">'
+            + stops(dark[token], light[token], 0.15, 0.85, fade)
+            + "</linearGradient>"
+        )
+        left = 20 + i * (height - 40) / last
+        right = height - 20 - i * (height - 40) / last
+        mid_x, mid_y = WIDTH / 2, height / 2
+        lines.append(
+            f'<path d="M0 {left:.1f} C{WIDTH * 0.32:.0f} {left:.1f} {WIDTH * 0.38:.0f} {mid_y} '
+            f'{mid_x:.0f} {mid_y} S{WIDTH * 0.68:.0f} {right:.1f} {WIDTH} {right:.1f}" '
+            f'fill="none" stroke="url(#h{i})" stroke-width="7" stroke-linecap="round" />'
+        )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" '
+        f'viewBox="0 0 {WIDTH} {height}" role="img" '
+        'aria-label="GitHub Dark default fading into Light default">\n'
+        f"<defs>{''.join(defs)}</defs>\n"
+        f'<g clip-path="url(#card)"><rect width="{WIDTH}" height="{height}" fill="url(#ground)" />\n'
+        + "\n".join(lines)
+        + "\n</g>\n</svg>\n"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -210,6 +374,12 @@ def main(argv: list[str] | None = None) -> int:
         (schemes / f"github-{theme}-default.yaml").write_text(
             base16_scheme(theme, resolved[theme]), encoding="utf-8"
         )
+
+    previews = out / "preview"
+    previews.mkdir(exist_ok=True)
+    for theme in THEMES:
+        (previews / f"{theme}.svg").write_text(preview_svg(theme, resolved[theme]), encoding="utf-8")
+    (previews / "banner.svg").write_text(banner_svg(resolved["dark"], resolved["light"]), encoding="utf-8")
 
     icons = out / "icons"
     if icons.exists():

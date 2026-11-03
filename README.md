@@ -1,7 +1,12 @@
+![](preview/banner.svg)
+
 # github-primer-theme
 
 GitHub's "Dark default" and "Light default" themes and Octicons, taken from
 GitHub's [Primer](https://primer.style) packages, for theming other apps.
+
+![GitHub Dark default palette](preview/dark.svg)
+![GitHub Light default palette](preview/light.svg)
 
 | File | Contents |
 | --- | --- |
@@ -10,6 +15,7 @@ GitHub's [Primer](https://primer.style) packages, for theming other apps.
 | `theme.css` | Both themes, following the system setting |
 | `base16/` | base16 schemes for 16-colour apps |
 | `icons/` | All Octicons as SVG (`<name>-<size>.svg`) |
+| `preview/` | The banner and palette images above |
 | `build.py` | Regenerates the files above |
 
 Source: `@primer/primitives` 11.10.0 and `@primer/octicons` 19.42.0.
