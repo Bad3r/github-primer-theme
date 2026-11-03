@@ -1,12 +1,14 @@
-![GitHub Universe 2022 artwork](https://github.blog/wp-content/uploads/2022/08/Universe-Blog-1-Header.jpg?fit=2400%2C1260)
+![GitHub Universe 2022 artwork](https://github.blog/wp-content/uploads/2022/08/Universe-Blog-1-Header.jpg?fit=1648%2C866)
 
 # github-primer-theme
 
 GitHub's "Dark default" and "Light default" themes and Octicons, taken from
 GitHub's [Primer](https://primer.style) packages, for theming other apps.
 
-![GitHub Dark default palette](preview/dark.svg)
-![GitHub Light default palette](preview/light.svg)
+<p>
+  <img src="preview/dark.svg" alt="GitHub Dark default palette" width="400">
+  <img src="preview/light.svg" alt="GitHub Light default palette" width="400">
+</p>
 
 | File | Contents |
 | --- | --- |
